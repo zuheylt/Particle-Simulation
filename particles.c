@@ -1,14 +1,16 @@
 #include <math.h>
 #include <SDL2/SDL.h>
+#include <SDL_ttf.h>
 #include <stdlib.h>
 #include <time.h>
+
 typedef struct {
     float x, y;
     float vx, vy;
     float ax, ay;
 }Particle;
-#define RADIUS  3
-#define NUM_PARTICLES 3000
+#define RADIUS  5
+#define NUM_PARTICLES 7000
 #define SCREEN_WIDTH 1920
 #define SCREEN_HEIGHT 1080
 Particle particles[NUM_PARTICLES];
@@ -23,12 +25,12 @@ void initiate_particles(Particle particles[], int num_particles){
         int valid;
         do{
             valid=1;
-            particles[i].x = rand()%(SCREEN_WIDTH-RADIUS);
-            particles[i].y = rand()%(SCREEN_HEIGHT-RADIUS);
+            particles[i].x = rand()%(SCREEN_WIDTH-(2*RADIUS))+RADIUS;
+            particles[i].y = rand()%(SCREEN_HEIGHT-(2*RADIUS))+RADIUS;
             
             for (int j = 0; j<i; j++){
                 if (distance(particles[i],particles[j])< (2*RADIUS+1)){
-                    valid =0;
+                    valid = 0;
                 }
             }
         }while(!valid);
@@ -40,13 +42,13 @@ void initiate_particles(Particle particles[], int num_particles){
     }
 }
 
-void update_particles(Particle particles[], int num_particles,float dt){
+void update_particles(Particle particles[], int num_particles, float dt){
     for (int i=0;i<num_particles;i++){
-        if(particles[i].x<0||particles[i].x>SCREEN_WIDTH){
+        if(particles[i].x<RADIUS||particles[i].x>SCREEN_WIDTH-RADIUS){
             particles[i].vx *= -1;
 
         }
-        if(particles[i].y<0||particles[i].y>SCREEN_HEIGHT){
+        if(particles[i].y<RADIUS||particles[i].y>SCREEN_HEIGHT-RADIUS){
             particles[i].vy *= -1;
 
         }
@@ -73,6 +75,12 @@ void draw_circle(SDL_Renderer *renderer, Particle particles[]){
 
 
 int main(){
+    if (TTF_Init() != 0){
+        printf("TTF_Init:%s", TTF_GetError());
+        return 1;
+    }
+    TTF_Font *font = TTF_OpenFont("/home/temel/Documents/GitHub/Particle-Simulation/arial.ttf",20);
+
     srand(time(NULL));
     if (SDL_Init(SDL_INIT_VIDEO)!= 0){
         printf("SDL couldn't initialized SDL_ERROR: %s",SDL_GetError());
@@ -103,26 +111,59 @@ int main(){
     initiate_particles(particles,NUM_PARTICLES);
 
 
-
-    int running =1;
     SDL_Event event;
-
+    int running =1;
+    Uint64 start_time= SDL_GetPerformanceFrequency();
+    Uint64 frequency = SDL_GetPerformanceCounter();
+    int frame_count =0;
+    char fps_text[20];
+    SDL_Color textColor = {0, 128, 0, 255};
     while(running){
         while (SDL_PollEvent(&event)){
             if (event.type == SDL_QUIT){
                 running =0;
             }
         }
+        Uint32 frame_start = SDL_GetTicks();
         update_particles(particles,NUM_PARTICLES,0.016);
 
         SDL_SetRenderDrawColor(renderer,0,0,0,255);
         SDL_RenderClear(renderer);
 
+        SDL_Surface *textSurface = TTF_RenderText_Solid(font, fps_text, textColor);
+        if (textSurface) {
+            SDL_Texture *textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+            SDL_Rect textRect = {10, 10, textSurface->w, textSurface->h};
+            SDL_FreeSurface(textSurface);
+
+            SDL_RenderCopy(renderer, textTexture, NULL, &textRect);
+            SDL_DestroyTexture(textTexture);
+            }
+
+
         SDL_SetRenderDrawColor(renderer,255,255,255,255);
         draw_circle(renderer,particles);
-        SDL_RenderPresent(renderer);    
-        SDL_Delay(16);
+        
+        SDL_RenderPresent(renderer);
 
+        Uint32 frame_end = SDL_GetTicks();
+        Uint32 frame_time = frame_end - frame_start;
+        frame_count++;
+        if(frame_time<16){
+            SDL_Delay(16-frame_time);
+        }
+
+        Uint64 currentTİme = SDL_GetPerformanceCounter();
+        double passed_time = (currentTİme-start_time)/(double)frequency;
+        if(passed_time >= 1.0){
+            snprintf(fps_text, sizeof(fps_text), "FPS: %d", frame_count);
+            start_time = SDL_GetPerformanceCounter();
+            frame_count=0;
+            
+        }
+         
+
+        
 
 
     }  
@@ -130,7 +171,7 @@ int main(){
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
-
-
+    TTF_CloseFont(font);
+    TTF_Quit();
     return 0;
 }

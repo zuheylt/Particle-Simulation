@@ -13,7 +13,8 @@
                 "/home/temel/Documents/GitHub/Particle-Simulation/particles",
                 "-L/usr/lib",
                 "-lSDL2",
-                "-lm"
+                "-lm",
+                "-lSDL2_ttf"
             ],
             "options": {
                 "cwd": "${fileDirname}"
