@@ -7,8 +7,8 @@ typedef struct {
     float vx, vy;
     float ax, ay;
 }Particle;
-#define RADIUS  2
-#define NUM_PARTICLES 500
+#define RADIUS  3
+#define NUM_PARTICLES 3000
 #define SCREEN_WIDTH 1920
 #define SCREEN_HEIGHT 1080
 Particle particles[NUM_PARTICLES];
@@ -32,21 +32,39 @@ void initiate_particles(Particle particles[], int num_particles){
                 }
             }
         }while(!valid);
-        particles[i].vx=0;
-        particles[i].vy=0;
+        particles[i].vx=((float)rand()/RAND_MAX)*500-250;
+        particles[i].vy=((float)rand()/RAND_MAX)*500-250;
         particles[i].ax=0;
         particles[i].ay=0;
 
     }
 }
+
+void update_particles(Particle particles[], int num_particles,float dt){
+    for (int i=0;i<num_particles;i++){
+        if(particles[i].x<0||particles[i].x>SCREEN_WIDTH){
+            particles[i].vx *= -1;
+
+        }
+        if(particles[i].y<0||particles[i].y>SCREEN_HEIGHT){
+            particles[i].vy *= -1;
+
+        }
+
+
+        particles[i].x += particles[i].vx*dt;
+        particles[i].y += particles[i].vy*dt;
+    }
+}
+
 void draw_circle(SDL_Renderer *renderer, Particle particles[]){
     for (int i=0; i<NUM_PARTICLES; i++){
         for (int w=0; w< RADIUS*2;w++){
-            for (int h=0; h<RADIUS*2;h++){
+            for (int h=0; h<RADIUS*2;h++){                           
                 int dx = RADIUS-w;
                 int dy = RADIUS-h;
                 if (dx*dx+dy*dy<= RADIUS*RADIUS){
-                SDL_RenderDrawPoint(renderer, (int) particles[i].x+dx, (int) particles[i].y+dy);
+                SDL_RenderDrawPoint(renderer, (int) particles[i].x+dx, (int) particles[i].y+dy);  
                 }
             }
         }
@@ -95,6 +113,7 @@ int main(){
                 running =0;
             }
         }
+        update_particles(particles,NUM_PARTICLES,0.016);
 
         SDL_SetRenderDrawColor(renderer,0,0,0,255);
         SDL_RenderClear(renderer);
@@ -102,12 +121,15 @@ int main(){
         SDL_SetRenderDrawColor(renderer,255,255,255,255);
         draw_circle(renderer,particles);
         SDL_RenderPresent(renderer);    
+        SDL_Delay(16);
 
 
 
+    }  
 
-    }
-
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
 
 
     return 0;
