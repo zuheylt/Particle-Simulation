@@ -4,15 +4,17 @@
 #include <stdlib.h>
 #include <time.h>
 
+#define RADIUS  2
+#define NUM_PARTICLES 20000
+#define SCREEN_WIDTH 1920
+#define SCREEN_HEIGHT 1080
+
 typedef struct {
     float x, y;
     float vx, vy;
     float ax, ay;
 }Particle;
-#define RADIUS  5
-#define NUM_PARTICLES 7000
-#define SCREEN_WIDTH 1920
-#define SCREEN_HEIGHT 1080
+
 Particle particles[NUM_PARTICLES];
 
 float distance(Particle p1, Particle p2){
@@ -28,6 +30,8 @@ void initiate_particles(Particle particles[], int num_particles){
             particles[i].x = rand()%(SCREEN_WIDTH-(2*RADIUS))+RADIUS;
             particles[i].y = rand()%(SCREEN_HEIGHT-(2*RADIUS))+RADIUS;
             
+
+            //Should be optimized with big numbers unable to finish
             for (int j = 0; j<i; j++){
                 if (distance(particles[i],particles[j])< (2*RADIUS+1)){
                     valid = 0;
@@ -75,13 +79,15 @@ void draw_circle(SDL_Renderer *renderer, Particle particles[]){
 
 
 int main(){
+    srand(time(NULL));
+
     if (TTF_Init() != 0){
         printf("TTF_Init:%s", TTF_GetError());
         return 1;
     }
     TTF_Font *font = TTF_OpenFont("/home/temel/Documents/GitHub/Particle-Simulation/arial.ttf",20);
+    SDL_Color textColor = {0, 128, 0, 255};
 
-    srand(time(NULL));
     if (SDL_Init(SDL_INIT_VIDEO)!= 0){
         printf("SDL couldn't initialized SDL_ERROR: %s",SDL_GetError());
         return 1;
@@ -106,29 +112,32 @@ int main(){
         SDL_Quit();
         return 1;
     } 
+    SDL_Event event;
 
     Particle particles[NUM_PARTICLES];
     initiate_particles(particles,NUM_PARTICLES);
 
 
-    SDL_Event event;
     int running =1;
-    Uint64 start_time= SDL_GetPerformanceFrequency();
-    Uint64 frequency = SDL_GetPerformanceCounter();
+    Uint64 start_time= SDL_GetPerformanceCounter();
+    Uint64 frequency = SDL_GetPerformanceFrequency();
     int frame_count =0;
     char fps_text[20];
-    SDL_Color textColor = {0, 128, 0, 255};
+
     while(running){
         while (SDL_PollEvent(&event)){
             if (event.type == SDL_QUIT){
                 running =0;
             }
         }
-        Uint32 frame_start = SDL_GetTicks();
+        Uint32 frame_start = SDL_GetPerformanceCounter();
         update_particles(particles,NUM_PARTICLES,0.016);
 
         SDL_SetRenderDrawColor(renderer,0,0,0,255);
         SDL_RenderClear(renderer);
+
+        SDL_SetRenderDrawColor(renderer,255,255,255,255);
+        draw_circle(renderer,particles);
 
         SDL_Surface *textSurface = TTF_RenderText_Solid(font, fps_text, textColor);
         if (textSurface) {
@@ -139,18 +148,14 @@ int main(){
             SDL_RenderCopy(renderer, textTexture, NULL, &textRect);
             SDL_DestroyTexture(textTexture);
             }
-
-
-        SDL_SetRenderDrawColor(renderer,255,255,255,255);
-        draw_circle(renderer,particles);
         
         SDL_RenderPresent(renderer);
 
-        Uint32 frame_end = SDL_GetTicks();
-        Uint32 frame_time = frame_end - frame_start;
+        Uint32 frame_end = SDL_GetPerformanceCounter();
+        double frame_time = (double)(frame_end - frame_start)/frequency;
         frame_count++;
-        if(frame_time<16){
-            SDL_Delay(16-frame_time);
+        if(frame_time<0.016){
+            SDL_Delay(16-frame_time*1000);
         }
 
         Uint64 currentTİme = SDL_GetPerformanceCounter();
