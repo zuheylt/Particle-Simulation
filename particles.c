@@ -5,18 +5,18 @@
 #include <time.h>
 
 #define RADIUS  3
-#define NUM_PARTICLES 20000
+#define NUM_PARTICLES 28360                                                          
 #define SCREEN_WIDTH 1920
 #define SCREEN_HEIGHT 1080
 #define GAP_X (SCREEN_WIDTH/NUM_GRID_X)
 #define GAP_Y (SCREEN_HEIGHT/NUM_GRID_Y)
-#define NUM_GRID_X 32
-#define NUM_GRID_Y 38
+#define NUM_GRID_X 8
+#define NUM_GRID_Y 3
 #define GRID_NUMBER (NUM_GRID_X * NUM_GRID_Y)
 
 const int BASE_PARTICLES_PER_GRID = NUM_PARTICLES/GRID_NUMBER;
-const int REMAINDER_PARTICLES = NUM_PARTICLES%GRID_NUMBER;
-
+const int REMAINDER_PARTICLES = NUM_PARTICLES % GRID_NUMBER;
+const int MAX_INITIAL_SPEED = 500;
 typedef struct {
     float x, y;
     float vx, vy;
@@ -62,6 +62,7 @@ void free_grids(Grid grids[]) {
 void initiate_particles(Particle particles[], Grid grids[]){
    int particle_index =0;
 
+
    for (int grid_idx=0; grid_idx <  GRID_NUMBER; grid_idx++){                                                                                                        
         int particles_in_this_grid = BASE_PARTICLES_PER_GRID + (grid_idx < REMAINDER_PARTICLES ? 1 : 0 );
         
@@ -72,8 +73,8 @@ void initiate_particles(Particle particles[], Grid grids[]){
              int valid;
             do{
                 valid=1;
-                grids[grid_idx].particles[j].x = rand()%(GAP_X-(2*RADIUS)) + RADIUS + grids[grid_idx].x_origin;
-                grids[grid_idx].particles[j].y = rand()%(GAP_Y-(2*RADIUS)) + RADIUS + grids[grid_idx].y_origin;
+                grids[grid_idx].particles[j].x = rand()%(GAP_X-(RADIUS)) + RADIUS + grids[grid_idx].x_origin;
+                grids[grid_idx].particles[j].y = rand()%(GAP_Y-(RADIUS)) + RADIUS + grids[grid_idx].y_origin;
             
 
                 
@@ -84,8 +85,8 @@ void initiate_particles(Particle particles[], Grid grids[]){
                     }
                 }
             }while(!valid);
-            grids[grid_idx].particles[j].vx=((float)rand()/RAND_MAX)*500-250;
-            grids[grid_idx].particles[j].vy=((float)rand()/RAND_MAX)*500-250;
+            grids[grid_idx].particles[j].vx=((float)rand()/RAND_MAX) * MAX_INITIAL_SPEED - (MAX_INITIAL_SPEED/2);
+            grids[grid_idx].particles[j].vy=((float)rand()/RAND_MAX) * MAX_INITIAL_SPEED - (MAX_INITIAL_SPEED/2);
             grids[grid_idx].particles[j].ax=0;
             grids[grid_idx].particles[j].ay=0;
             particles[particle_index++]=grids[grid_idx].particles[j];
@@ -205,7 +206,7 @@ int main(){
         SDL_SetRenderDrawColor(renderer,0,0,0,255);
         SDL_RenderClear(renderer);
 
-        SDL_SetRenderDrawColor(renderer,255,255,255,255);
+        SDL_SetRenderDrawColor(renderer,255,200,50,255);
         draw_circle(renderer,particles);
 
         SDL_Surface *textSurface = TTF_RenderText_Solid(font, fps_text, textColor);
@@ -224,7 +225,7 @@ int main(){
         Uint32 frame_time = (Uint32)((frame_end - frame_start) * 1000 / frequency);
         frame_count++;
         if(frame_time<16){
-           // SDL_Delay(16-frame_time);
+            SDL_Delay(16-frame_time);
         }
 
         Uint64 currentTime = SDL_GetPerformanceCounter();
