@@ -4,10 +4,18 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define RADIUS  2
+#define RADIUS  3
 #define NUM_PARTICLES 20000
 #define SCREEN_WIDTH 1920
 #define SCREEN_HEIGHT 1080
+#define GAP_X (SCREEN_WIDTH/NUM_GRID_X)
+#define GAP_Y (SCREEN_HEIGHT/NUM_GRID_Y)
+#define NUM_GRID_X 32
+#define NUM_GRID_Y 38
+#define GRID_NUMBER (NUM_GRID_X * NUM_GRID_Y)
+
+const int BASE_PARTICLES_PER_GRID = NUM_PARTICLES/GRID_NUMBER;
+const int REMAINDER_PARTICLES = NUM_PARTICLES%GRID_NUMBER;
 
 typedef struct {
     float x, y;
@@ -15,35 +23,79 @@ typedef struct {
     float ax, ay;
 }Particle;
 
-Particle particles[NUM_PARTICLES];
+typedef struct {
+    int x_origin;
+    int y_origin;
+    Particle *particles;
+
+}Grid;
+
 
 float distance(Particle p1, Particle p2){
     return sqrtf((p1.x-p2.x)*(p1.x-p2.x)+(p1.y-p2.y)*(p1.y-p2.y));
 }
+void initiate_grids(Grid grids[]) {    
+    for(int l = 0; l < NUM_GRID_Y; l++) {
+        for (int c = 0; c < NUM_GRID_X; c++) {
+            int grid_index = l* NUM_GRID_X + c;
 
+            int particles_in_this_grid = BASE_PARTICLES_PER_GRID + (grid_index < REMAINDER_PARTICLES ? 1:0);
+            
+            grids[grid_index].x_origin = GAP_X * c;
+            grids[grid_index].y_origin = GAP_Y * l;
+                
+            grids[grid_index].particles = malloc(particles_in_this_grid*sizeof(Particle));
+            
+            if (!grids[grid_index].particles) {
+                fprintf(stderr, "Memory allocation failed for grid[%d].particles\n", grid_index);
+                
+                exit(EXIT_FAILURE);
+            }
+        }
+    }
+}                                                                                                                       
+void free_grids(Grid grids[]) {
+    for (int i = 0; i < GRID_NUMBER; i++) {
+        free(grids[i].particles);  
+    }
+}
+void initiate_particles(Particle particles[], Grid grids[]){
+   int particle_index =0;
 
-void initiate_particles(Particle particles[], int num_particles){
-    for (int i= 0; i<num_particles; i++){
-        int valid;
-        do{
-            valid=1;
-            particles[i].x = rand()%(SCREEN_WIDTH-(2*RADIUS))+RADIUS;
-            particles[i].y = rand()%(SCREEN_HEIGHT-(2*RADIUS))+RADIUS;
+   for (int grid_idx=0; grid_idx <  GRID_NUMBER; grid_idx++){                                                                                                        
+        int particles_in_this_grid = BASE_PARTICLES_PER_GRID + (grid_idx < REMAINDER_PARTICLES ? 1 : 0 );
+        
+        
+        
+        for (int j = 0; j < particles_in_this_grid; j++){
+
+             int valid;
+            do{
+                valid=1;
+                grids[grid_idx].particles[j].x = rand()%(GAP_X-(2*RADIUS)) + RADIUS + grids[grid_idx].x_origin;
+                grids[grid_idx].particles[j].y = rand()%(GAP_Y-(2*RADIUS)) + RADIUS + grids[grid_idx].y_origin;
             
 
-            //Should be optimized with big numbers unable to finish
-            for (int j = 0; j<i; j++){
-                if (distance(particles[i],particles[j])< (2*RADIUS+1)){
-                    valid = 0;
+                
+                for (int k = 0; k<j; k++){
+                    if (distance(grids[grid_idx].particles[j],grids[grid_idx].particles[k])< (2*RADIUS+1)){
+                        valid = 0;
+                        break;
+                    }
                 }
-            }
-        }while(!valid);
-        particles[i].vx=((float)rand()/RAND_MAX)*500-250;
-        particles[i].vy=((float)rand()/RAND_MAX)*500-250;
-        particles[i].ax=0;
-        particles[i].ay=0;
+            }while(!valid);
+            grids[grid_idx].particles[j].vx=((float)rand()/RAND_MAX)*500-250;
+            grids[grid_idx].particles[j].vy=((float)rand()/RAND_MAX)*500-250;
+            grids[grid_idx].particles[j].ax=0;
+            grids[grid_idx].particles[j].ay=0;
+            particles[particle_index++]=grids[grid_idx].particles[j];
+            
+
+        }
 
     }
+   
+    
 }
 
 void update_particles(Particle particles[], int num_particles, float dt){
@@ -79,17 +131,12 @@ void draw_circle(SDL_Renderer *renderer, Particle particles[]){
 
 
 int main(){
-    srand(time(NULL));
-
-    if (TTF_Init() != 0){
-        printf("TTF_Init:%s", TTF_GetError());
-        return 1;
-    }
-    TTF_Font *font = TTF_OpenFont("/home/temel/Documents/GitHub/Particle-Simulation/arial.ttf",20);
-    SDL_Color textColor = {0, 128, 0, 255};
+    printf("Starting simulator \n");
+    
+    srand((unsigned int)time(NULL));
 
     if (SDL_Init(SDL_INIT_VIDEO)!= 0){
-        printf("SDL couldn't initialized SDL_ERROR: %s",SDL_GetError());
+        printf("SDL couldn't initialized SDL_ERROR: %s \n",SDL_GetError());
         return 1;
     }
 
@@ -100,22 +147,44 @@ int main(){
                                             SCREEN_HEIGHT,
                                             SDL_WINDOW_FULLSCREEN);
     if (!window){
-        printf("window couldn't created SDL_ERROR: %s", SDL_GetError());
+        fprintf(stderr,"window couldn't created SDL_ERROR: %s \n", SDL_GetError());
         SDL_Quit();
         return 1;
     }
 
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
-    if (!renderer){
-        printf("Couldn't created window SDL_ERROR: %s", SDL_GetError());
+    if (!renderer) {
+    fprintf(stderr, "Renderer couldn't be created. SDL_ERROR: %s\n", SDL_GetError());
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+    return 1;
+    }
+
+    if (TTF_Init() != 0){
+        printf("TTF_Init:%s", TTF_GetError());
+        return 1;
+    }
+    TTF_Font *font = TTF_OpenFont("/home/temel/Documents/GitHub/Particle-Simulation/arial.ttf",20);
+    
+    if (!font) {
+        fprintf(stderr, "Failed to load font! SDL_ttf Error: %s\n", TTF_GetError());
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
         SDL_Quit();
         return 1;
-    } 
+    }
+    SDL_Color textColor = {0, 128, 0, 255};
+
     SDL_Event event;
 
     Particle particles[NUM_PARTICLES];
-    initiate_particles(particles,NUM_PARTICLES);
+    Grid grids[GRID_NUMBER];
+    printf("initiating grids\n");
+    initiate_grids(grids);
+    printf("initiating particles\n");
+    initiate_particles(particles,grids);
+    printf("particles initiated\n");
 
 
     int running =1;
@@ -152,26 +221,28 @@ int main(){
         SDL_RenderPresent(renderer);
 
         Uint32 frame_end = SDL_GetPerformanceCounter();
-        double frame_time = (double)(frame_end - frame_start)/frequency;
+        Uint32 frame_time = (Uint32)((frame_end - frame_start) * 1000 / frequency);
         frame_count++;
-        if(frame_time<0.016){
-            SDL_Delay(16-frame_time*1000);
+        if(frame_time<16){
+           // SDL_Delay(16-frame_time);
         }
 
-        Uint64 currentTİme = SDL_GetPerformanceCounter();
-        double passed_time = (currentTİme-start_time)/(double)frequency;
+        Uint64 currentTime = SDL_GetPerformanceCounter();
+        double passed_time = (currentTime-start_time)/(double)frequency;
         if(passed_time >= 1.0){
             snprintf(fps_text, sizeof(fps_text), "FPS: %d", frame_count);
             start_time = SDL_GetPerformanceCounter();
             frame_count=0;
             
-        }
+        }   
          
 
         
 
 
     }  
+
+    free_grids(grids);
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
